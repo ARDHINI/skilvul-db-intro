@@ -3,6 +3,8 @@ const bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 
+const companyModel = require('./models').company
+
 // get config vars
 dotenv.config();
 
@@ -73,6 +75,35 @@ let checkData = (req,res, next) => {
     next()
 }
 
+let checkUser = (req, res, next) => {
+    let response = {}
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1]
+
+    if (token == null) {
+        response = {
+            status: "ERROR",
+            message: "Authorization Failed"
+        }
+        res.status(401).json(response)
+        return
+    }
+
+    jwt.verify(token, process.env.TOKEN_SECRET, (error, user) => {
+        console.log(error)
+        if (error) {
+            response = {
+                status: "ERROR",
+                message: error
+            }
+            res.status(401).json(response)
+            return
+        }
+        req.user = user
+        next()
+  })
+}
+
 app.use(checkData)
 
 app.get("/", (req, res) => {
@@ -122,6 +153,49 @@ app.delete("/users/:id", (req, res) => {
     res.send()
 })
 
+app.get("/companies", async (req, res) => {
+
+    const companies = await companyModel.findAll();
+    const response = {
+        status: "SUCCESS",
+        message: "Get All Company",
+        meta: {
+            total: companies.length
+        },
+        data: companies
+    }
+
+    res.status(200).json(response)
+    return
+})
+
+app.get("/companies/:id", async (req, res) => {
+    let response = {}
+    const companies = await companyModel.findAll({
+        where: {
+            id: req.params.id
+        }
+    });
+
+    if(companies.length == 0) {
+        response = {
+            status: "SUCCESS",
+            message: "Data not Found"
+        }
+    } else {
+        response = {
+            status: "SUCCESS",
+            message: "Get Detail Company",
+            data: companies
+        }
+    }
+
+    res.status(200).json(response)
+    return
+})
+
+
+
 app.post("/login", (req, res) => {
     let email = req.body.email
     let password = req.body.password
@@ -163,6 +237,155 @@ app.post("/login", (req, res) => {
         access_token: access_token
     }
     res.json(response)
+})
+
+app.use(checkUser)
+
+app.post("/companies", async (req, res) => {
+    let response = {}
+    let code = 200
+    if(req.body.nama == ""|| req.body.nama == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "nama cannot be blank"
+        }
+
+    } 
+    if(req.body.nama_pemilik == "" || req.body.nama_pemilik == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "nama_pemilik cannot be blank"
+        }
+    } 
+    if(req.body.alamat == "" || req.body.alamat == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "alamat cannot be blank"
+        }
+    }
+    if(req.body.jenis_id == "" || req.body.jenis_id == 0 || req.body.jenis_id == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "jenis_id cannot be blank"
+        }
+    }
+    try {
+        const newCompany = await companyModel.create({
+            nama: req.body.nama,
+            nama_pemilik: req.body.nama_pemilik,
+            alamat: req.body.alamat,
+            jenis_id: req.body.jenis_id
+        });
+    
+        response = {
+            status: "SUCCESS",
+            message: "Create Company",
+            data: newCompany
+        }
+    } catch(error) {
+        code = 422
+        response = {
+            status: "ERROR",
+            message: error.parent.sqlMessage
+        }
+    }
+    
+
+    res.status(code).json(response)
+    return
+})
+
+app.delete("/companies/:id", async (req, res) => {
+    let response = {}
+    let code = 200
+    try {
+        const newCompany = await companyModel.create({
+            nama: req.body.nama,
+            nama_pemilik: req.body.nama_pemilik,
+            alamat: req.body.alamat,
+            jenis_id: req.body.jenis_id
+        });
+    
+        response = {
+            status: "SUCCESS",
+            message: "Create Company",
+            data: newCompany
+        }
+    } catch(error) {
+        code = 422
+        response = {
+            status: "ERROR",
+            message: error.parent.sqlMessage
+        }
+    }
+    
+
+    res.status(code).json(response)
+    return
+})
+
+app.put("/companies/:id", async (req, res) => {
+    let response = {}
+    let code = 200
+    if(req.body.nama == ""|| req.body.nama == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "nama cannot be blank"
+        }
+
+    } 
+    if(req.body.nama_pemilik == "" || req.body.nama_pemilik == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "nama_pemilik cannot be blank"
+        }
+    } 
+    if(req.body.alamat == "" || req.body.alamat == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "alamat cannot be blank"
+        }
+    }
+    if(req.body.jenis_id == "" || req.body.jenis_id == 0 || req.body.jenis_id == undefined) {
+        code = 422
+        response = {
+            status: "SUCCESS",
+            message: "jenis_id cannot be blank"
+        }
+    }
+    const companies = await companyModel.findOne({
+        where: {
+            id: req.params.id
+        }
+    });
+
+    if(!companies) {
+        response = {
+            status: "SUCCESS",
+            message: "Data not Found"
+        }
+    } else {
+        companies.nama = req.body.nama
+        companies.nama_pemilik = req.body.nama_pemilik
+        companies.alamat = req.body.alamat
+        companies.jenis_id = req.body.jenis_id
+        companies.save()
+        response = {
+            status: "SUCCESS",
+            message: "Update Company",
+            data: companies
+        }
+    }
+
+    res.status(code).json(response)
+    return
 })
 
 app.listen(port, () => {
